@@ -1,22 +1,23 @@
 local Junkie = {}
 do
-    -- We keep the loader so the script doesn't error, but we override the logic below
-    local junkie = loadstring(game:HttpGet("https://jnkie.com/sdk/library.lua"))()
+    -- We create a fake 'junkie' object locally instead of loading it from the web.
+    -- This prevents the real SDK from showing that "Invalid key" popup.
+    local junkie = {}
     junkie.service = "roblox"
     junkie.identifier = "1021594"
     junkie.provider = "roblox"
 
     function Junkie.get_key_link()
-        return junkie.get_key_link()
+        return "https://google.com" -- Put any link here
     end
 
     function Junkie.check_key(key)
-        -- We return a fake 'valid' object so the rest of the script stays happy
+        -- Return a table that looks like a successful response
         return { valid = true, message = "KEY_VALID" }
     end
 
     function Junkie.validate(key)
-        -- This is the "Magic" line: no matter what is typed, it returns SUCCESS
+        -- Always return SUCCESS
         return "SUCCESS"
     end
 end
@@ -30,58 +31,53 @@ do
         loadstring(game:HttpGet("https://raw.githubusercontent.com/deividcomsono/Obsidian/main/addons/SaveManager.lua"))()
 
     do
-        -- Force this to false so the UI always shows up for you
         getgenv().KEY_VALID = false
 
-        -- This part will now always succeed because Junkie.validate returns "SUCCESS"
+        -- If a key is saved, it will now always validate as SUCCESS
         if isfile("ascida/key.data") then
             local savedKey = readfile("ascida/key.data")
             if Junkie.validate(savedKey) == "SUCCESS" then
-                -- If you want it to ALWAYS show the UI, comment out the next two lines:
-                -- getgenv().KEY_VALID = true
-                -- getgenv().SCRIPT_KEY = savedKey
+                getgenv().KEY_VALID = true
+                getgenv().SCRIPT_KEY = savedKey
             end
         end
 
         if not getgenv().KEY_VALID then
             UI.Window = UI.Library:CreateWindow({
-                Title = "Ascicida",
+                Title = "Ascicida | Bypassed",
                 Footer = "dsc.gg/luafans",
                 Font = Enum.Font.Jura,
                 ToggleKeybind = Enum.KeyCode.RightShift
             })
 
             local KeyTab = UI.Window:AddKeyTab("Key System", "key")
-            KeyTab:AddLabel("Enter any text to unlock.", true)
+            KeyTab:AddLabel("Enter anything to unlock the script.", true)
 
             KeyTab:AddKeyBox(function(ReceivedKey)
-                -- Because Junkie.validate is bypassed, any text here triggers "SUCCESS"
+                -- This will now always trigger because Junkie.validate is our fake function
                 if Junkie.validate(ReceivedKey) == "SUCCESS" then
                     getgenv().KEY_VALID = true
                     getgenv().SCRIPT_KEY = ReceivedKey
 
-                    -- Create folder if it doesn't exist to avoid errors
                     if not isfolder("ascida") then makefolder("ascida") end
                     writefile("ascida/key.data", ReceivedKey)
 
                     UI.Library:Notify({
                         Title = "Ascida",
-                        Description = "Login successful! (Bypassed)"
+                        Description = "Bypass Successful! Enjoy."
                     })
                 end
             end)
 
             KeyTab:AddButton("Get Key", function()
-                (setclipboard or toclipboard or set_clipboard or (Clipboard and Clipboard.set))(Junkie.get_key_link())
+                setclipboard(Junkie.get_key_link())
                 UI.Library:Notify({
                     Title = "Ascida",
-                    Description = "Key link copied (though you don't need it)!"
+                    Description = "Link copied (not needed)!"
                 })
             end)
 
-            -- The script waits here until you type something and hit enter
             repeat task.wait() until getgenv().KEY_VALID == true
-
             UI.Library:Unload()
         end
     end
