@@ -1,25 +1,22 @@
 local Junkie = {}
 do
-    -- We can keep the setup, but we will override the logic
-    local junkie = {
-        get_key_link = function() return "https://example.com" end,
-        check_key = function() return { valid = true } end
-    }
-    
+    -- We keep the loader so the script doesn't error, but we override the logic below
+    local junkie = loadstring(game:HttpGet("https://jnkie.com/sdk/library.lua"))()
     junkie.service = "roblox"
     junkie.identifier = "1021594"
     junkie.provider = "roblox"
 
     function Junkie.get_key_link()
-        return "Bypassed"
+        return junkie.get_key_link()
     end
 
     function Junkie.check_key(key)
-        return { valid = true, message = "KEYLESS" }
+        -- We return a fake 'valid' object so the rest of the script stays happy
+        return { valid = true, message = "KEY_VALID" }
     end
 
-    -- Force this function to always return "SUCCESS"
     function Junkie.validate(key)
+        -- This is the "Magic" line: no matter what is typed, it returns SUCCESS
         return "SUCCESS"
     end
 end
@@ -27,22 +24,68 @@ end
 local UI = {}
 getgenv().UI = UI
 do
-    -- Force the global variable to true immediately
-    getgenv().KEY_VALID = true
-    getgenv().SCRIPT_KEY = "Bypassed"
-
     UI.Library, UI.ThemeManager, UI.SaveManager =
         loadstring(game:HttpGet("https://raw.githubusercontent.com/deividcomsono/Obsidian/refs/heads/main/Library.lua"))(),
         loadstring(game:HttpGet("https://raw.githubusercontent.com/deividcomsono/Obsidian/refs/heads/main/addons/ThemeManager.lua"))(),
         loadstring(game:HttpGet("https://raw.githubusercontent.com/deividcomsono/Obsidian/main/addons/SaveManager.lua"))()
 
-    -- The script will now skip the 'if not getgenv().KEY_VALID' block entirely
-    if not getgenv().KEY_VALID then
-        -- This block is now unreachable
+    do
+        -- Force this to false so the UI always shows up for you
+        getgenv().KEY_VALID = false
+
+        -- This part will now always succeed because Junkie.validate returns "SUCCESS"
+        if isfile("ascida/key.data") then
+            local savedKey = readfile("ascida/key.data")
+            if Junkie.validate(savedKey) == "SUCCESS" then
+                -- If you want it to ALWAYS show the UI, comment out the next two lines:
+                -- getgenv().KEY_VALID = true
+                -- getgenv().SCRIPT_KEY = savedKey
+            end
+        end
+
+        if not getgenv().KEY_VALID then
+            UI.Window = UI.Library:CreateWindow({
+                Title = "Ascicida",
+                Footer = "dsc.gg/luafans",
+                Font = Enum.Font.Jura,
+                ToggleKeybind = Enum.KeyCode.RightShift
+            })
+
+            local KeyTab = UI.Window:AddKeyTab("Key System", "key")
+            KeyTab:AddLabel("Enter any text to unlock.", true)
+
+            KeyTab:AddKeyBox(function(ReceivedKey)
+                -- Because Junkie.validate is bypassed, any text here triggers "SUCCESS"
+                if Junkie.validate(ReceivedKey) == "SUCCESS" then
+                    getgenv().KEY_VALID = true
+                    getgenv().SCRIPT_KEY = ReceivedKey
+
+                    -- Create folder if it doesn't exist to avoid errors
+                    if not isfolder("ascida") then makefolder("ascida") end
+                    writefile("ascida/key.data", ReceivedKey)
+
+                    UI.Library:Notify({
+                        Title = "Ascida",
+                        Description = "Login successful! (Bypassed)"
+                    })
+                end
+            end)
+
+            KeyTab:AddButton("Get Key", function()
+                (setclipboard or toclipboard or set_clipboard or (Clipboard and Clipboard.set))(Junkie.get_key_link())
+                UI.Library:Notify({
+                    Title = "Ascida",
+                    Description = "Key link copied (though you don't need it)!"
+                })
+            end)
+
+            -- The script waits here until you type something and hit enter
+            repeat task.wait() until getgenv().KEY_VALID == true
+
+            UI.Library:Unload()
+        end
     end
 end
-
-print("Key System Bypassed Successfully.")
 
 -- This file was protected using Luraph Obfuscator v14.7 [https://lura.ph/]
 
