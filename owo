@@ -1,83 +1,70 @@
+-- 1. Create a Fake Junkie Object (No web requests)
 local Junkie = {}
-do
-    -- We create a fake 'junkie' object locally instead of loading it from the web.
-    -- This prevents the real SDK from showing that "Invalid key" popup.
-    local junkie = {}
-    junkie.service = "roblox"
-    junkie.identifier = "1021594"
-    junkie.provider = "roblox"
+local dummy_functions = {
+    get_key_link = function() return "https://google.com" end,
+    check_key = function() return {valid = true, message = "KEY_VALID"} end,
+    validate = function() return "SUCCESS" end
+}
 
-    function Junkie.get_key_link()
-        return "https://google.com" -- Put any link here
+-- This ensures ANY call to Junkie or the internal junkie object returns "SUCCESS"
+setmetatable(Junkie, {
+    __index = function(t, k)
+        return dummy_functions[k] or function() return "SUCCESS" end
     end
-
-    function Junkie.check_key(key)
-        -- Return a table that looks like a successful response
-        return { valid = true, message = "KEY_VALID" }
-    end
-
-    function Junkie.validate(key)
-        -- Always return SUCCESS
-        return "SUCCESS"
-    end
-end
+})
 
 local UI = {}
 getgenv().UI = UI
 do
-    UI.Library, UI.ThemeManager, UI.SaveManager =
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/deividcomsono/Obsidian/refs/heads/main/Library.lua"))(),
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/deividcomsono/Obsidian/refs/heads/main/addons/ThemeManager.lua"))(),
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/deividcomsono/Obsidian/main/addons/SaveManager.lua"))()
+    -- 2. Load the UI Libraries (These are usually safe, just for the visuals)
+    UI.Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/deividcomsono/Obsidian/refs/heads/main/Library.lua"))()
+    UI.ThemeManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/deividcomsono/Obsidian/refs/heads/main/addons/ThemeManager.lua"))()
+    UI.SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/deividcomsono/Obsidian/main/addons/SaveManager.lua"))()
 
     do
         getgenv().KEY_VALID = false
 
-        -- If a key is saved, it will now always validate as SUCCESS
+        -- Bypass the saved file check
         if isfile("ascida/key.data") then
-            local savedKey = readfile("ascida/key.data")
-            if Junkie.validate(savedKey) == "SUCCESS" then
-                getgenv().KEY_VALID = true
-                getgenv().SCRIPT_KEY = savedKey
-            end
+            getgenv().KEY_VALID = true
+            getgenv().SCRIPT_KEY = readfile("ascida/key.data")
         end
 
+        -- 3. If no key is saved, show the UI (but it will accept anything)
         if not getgenv().KEY_VALID then
             UI.Window = UI.Library:CreateWindow({
-                Title = "Ascicida | Bypassed",
+                Title = "Ascicida | BYPASS ACTIVE",
                 Footer = "dsc.gg/luafans",
                 Font = Enum.Font.Jura,
                 ToggleKeybind = Enum.KeyCode.RightShift
             })
 
             local KeyTab = UI.Window:AddKeyTab("Key System", "key")
-            KeyTab:AddLabel("Enter anything to unlock the script.", true)
+            KeyTab:AddLabel("Bypass Active: Enter any text below.", true)
 
             KeyTab:AddKeyBox(function(ReceivedKey)
-                -- This will now always trigger because Junkie.validate is our fake function
-                if Junkie.validate(ReceivedKey) == "SUCCESS" then
-                    getgenv().KEY_VALID = true
-                    getgenv().SCRIPT_KEY = ReceivedKey
+                -- We don't even call a function here, we just force it to work
+                getgenv().KEY_VALID = true
+                getgenv().SCRIPT_KEY = ReceivedKey
 
-                    if not isfolder("ascida") then makefolder("ascida") end
-                    writefile("ascida/key.data", ReceivedKey)
+                if not isfolder("ascida") then makefolder("ascida") end
+                writefile("ascida/key.data", ReceivedKey)
 
-                    UI.Library:Notify({
-                        Title = "Ascida",
-                        Description = "Bypass Successful! Enjoy."
-                    })
-                end
-            end)
-
-            KeyTab:AddButton("Get Key", function()
-                setclipboard(Junkie.get_key_link())
                 UI.Library:Notify({
-                    Title = "Ascida",
-                    Description = "Link copied (not needed)!"
+                    Title = "Success",
+                    Description = "Key Accepted!"
                 })
             end)
 
+            KeyTab:AddButton("Get Key", function()
+                setclipboard("Bypassed")
+                UI.Library:Notify({Title = "Note", Description = "Key link not required."})
+            end)
+
+            -- Wait for you to type something
             repeat task.wait() until getgenv().KEY_VALID == true
+            
+            -- Unload the key UI so the main script can start
             UI.Library:Unload()
         end
     end
